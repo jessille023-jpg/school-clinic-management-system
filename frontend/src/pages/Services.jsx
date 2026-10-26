@@ -1,6 +1,8 @@
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 import Layout from "../components/Layout";
+import "./Services.css";
 
 const VISIT_TYPES = [
   "A1 - Medical Consultation",
@@ -10,11 +12,11 @@ const VISIT_TYPES = [
   "A5 - Physical Examination",
 ];
 
-const emptyForm = () => ({
+const emptyForm = {
   student_id: "",
   visit_type: VISIT_TYPES[0],
   visit_date: new Date().toLocaleDateString("en-CA"),
-  visit_time: new Date().toTimeString().slice(0, 5),
+  visit_time: "",
   physician_name: "",
   reason: "",
   medical_history: "",
@@ -31,221 +33,67 @@ const emptyForm = () => ({
   advice: "",
   remarks: "",
   follow_up_required: false,
-});
-
-const styles = {
-  page: { padding: 24, color: "#263238" },
-  heading: { marginBottom: 5, color: "#2e7d32" },
-  subtitle: { color: "#607d8b", marginTop: 0 },
-  button: {
-    padding: "10px 15px",
-    border: "none",
-    borderRadius: 6,
-    background: "#2e7d32",
-    color: "white",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-  secondary: {
-    padding: "10px 15px",
-    border: "1px solid #cfd8dc",
-    borderRadius: 6,
-    background: "white",
-    color: "#263238",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-  danger: {
-    padding: "10px 15px",
-    border: "none",
-    borderRadius: 6,
-    background: "#b71c1c",
-    color: "white",
-    cursor: "pointer",
-  },
-  card: {
-    background: "white",
-    border: "1px solid #e0e0e0",
-    borderRadius: 10,
-    padding: 20,
-    marginTop: 20,
-    boxShadow: "0 2px 5px rgba(0,0,0,0.04)",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: 15,
-  },
-  field: { display: "flex", flexDirection: "column", gap: 6 },
-  label: { fontSize: 13, fontWeight: 600, color: "#455a64" },
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: 10,
-    border: "1px solid #cfd8dc",
-    borderRadius: 6,
-    fontSize: 14,
-  },
-  textarea: {
-    width: "100%",
-    boxSizing: "border-box",
-    padding: 10,
-    border: "1px solid #cfd8dc",
-    borderRadius: 6,
-    minHeight: 85,
-    resize: "vertical",
-    fontFamily: "inherit",
-    fontSize: 14,
-  },
-  tableWrap: { overflowX: "auto", marginTop: 15 },
-  table: { width: "100%", borderCollapse: "collapse", fontSize: 13 },
-  th: {
-    textAlign: "left",
-    background: "#f1f8e9",
-    padding: 12,
-    borderBottom: "1px solid #dce8d5",
-    whiteSpace: "nowrap",
-  },
-  td: {
-    padding: 12,
-    borderBottom: "1px solid #eeeeee",
-    verticalAlign: "top",
-  },
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    zIndex: 1000,
-    background: "rgba(0,0,0,0.55)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 15,
-  },
-  modal: {
-    background: "#fff",
-    borderRadius: 10,
-    width: "100%",
-    maxWidth: 850,
-    maxHeight: "92vh",
-    overflowY: "auto",
-    padding: 24,
-    boxSizing: "border-box",
-  },
 };
 
-const displayValue = (value) => {
-  if (value === null || value === undefined || value === "") return "—";
-  return String(value);
-};
-
-const formatDate = (value) => {
+function formatDate(value) {
   if (!value) return "—";
-
-  // Keep the date as saved in MySQL.
-  // Do not convert it to a JavaScript Date,
-  // because timezone conversion can shift the day.
-  const raw = String(value).slice(0, 10);
-  const parts = raw.split("-");
-
-  if (parts.length !== 3) return raw;
-
-  const [year, month, day] = parts;
-  return `${month}/${day}/${year}`;
-};
-
-const formatTime = (value) => {
-  if (!value) return "—";
-
-  const raw = String(value);
-  const match = raw.match(/^(\d{1,2}):(\d{2})/);
-
-  if (!match) return raw;
-
-  let hour = Number(match[1]);
-  const minute = match[2];
-  const suffix = hour >= 12 ? "PM" : "AM";
-
-  hour = hour % 12 || 12;
-
-  return `${hour}:${minute} ${suffix}`;
-};
-
-const getStudentName = (visit, students) => {
-  if (visit?.student_name) return visit.student_name;
-
-  const student = students.find(
-    (item) => Number(item.id) === Number(visit?.student_id)
-  );
-
-  return student?.full_name || "Unknown student";
-};
-
-const getStudentNumber = (visit, students) => {
-  if (visit?.student_number) return visit.student_number;
-
-  const student = students.find(
-    (item) => Number(item.id) === Number(visit?.student_id)
-  );
-
-  return student?.student_id || "—";
-};
-
-const getVitalSigns = (visit) => {
-  const value = visit?.vital_signs;
-
-  if (!value) return "—";
-  if (typeof value === "string") return value;
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-};
-
-function Field({ label, children }) {
-  return (
-    <div style={styles.field}>
-      <label style={styles.label}>{label}</label>
-      {children}
-    </div>
-  );
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-PH", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
-function Detail({ label, value }) {
-  return (
-    <div
-      style={{
-        padding: "11px 0",
-        borderBottom: "1px solid #eeeeee",
-        overflowWrap: "anywhere",
-      }}
-    >
-      <div style={{ fontSize: 12, color: "#607d8b", marginBottom: 4 }}>
-        {label}
-      </div>
-      <div style={{ whiteSpace: "pre-wrap" }}>
-        {displayValue(value)}
-      </div>
-    </div>
-  );
+function formatTime(value) {
+  if (!value) return "—";
+  const time = String(value).slice(0, 5);
+  const [hours, minutes] = time.split(":");
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+  return date.toLocaleTimeString("en-PH", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function displayValue(value) {
+  return value === null || value === undefined || value === ""
+    ? "—"
+    : String(value);
+}
+
+function getVitalSigns(visit) {
+  if (visit.vital_signs) return visit.vital_signs;
+
+  return [
+    visit.blood_pressure && `BP: ${visit.blood_pressure}`,
+    visit.temperature && `Temp: ${visit.temperature} °C`,
+    visit.pulse_rate && `Pulse: ${visit.pulse_rate} bpm`,
+    visit.respiratory_rate && `RR: ${visit.respiratory_rate}/min`,
+    visit.oxygen_saturation && `SpO₂: ${visit.oxygen_saturation}%`,
+    visit.weight && `Weight: ${visit.weight} kg`,
+  ]
+    .filter(Boolean)
+    .join(" • ") || "—";
 }
 
 export default function Services() {
   const [visits, setVisits] = useState([]);
   const [students, setStudents] = useState([]);
-  const [form, setForm] = useState(emptyForm);
-  const [selectedVisit, setSelectedVisit] = useState(null);
-  const [editingVisit, setEditingVisit] = useState(null);
-
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [showForm, setShowForm] = useState(false);
 
-  const [searchText, setSearchText] = useState("");
-  const [filterVisitType, setFilterVisitType] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [editingVisit, setEditingVisit] = useState(null);
+  const [selectedVisit, setSelectedVisit] = useState(null);
+
+  const [search, setSearch] = useState("");
+  const [filterType, setFilterType] = useState("all");
   const [filterDate, setFilterDate] = useState("");
 
   const loadData = useCallback(async () => {
@@ -253,22 +101,26 @@ export default function Services() {
     setError("");
 
     try {
-      const [visitResponse, studentResponse] = await Promise.all([
+      const [visitsResponse, studentsResponse] = await Promise.all([
         API.get("/visits"),
         API.get("/students"),
       ]);
 
       setVisits(
-        Array.isArray(visitResponse.data) ? visitResponse.data : []
+        Array.isArray(visitsResponse.data)
+          ? visitsResponse.data
+          : visitsResponse.data?.visits || []
       );
 
       setStudents(
-        Array.isArray(studentResponse.data) ? studentResponse.data : []
+        Array.isArray(studentsResponse.data)
+          ? studentsResponse.data
+          : studentsResponse.data?.students || []
       );
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to load clinic visits. Check your login and backend server."
+          "Unable to load clinic visits or student records."
       );
     } finally {
       setLoading(false);
@@ -279,130 +131,111 @@ export default function Services() {
     loadData();
   }, [loadData]);
 
-  const selectedStudent = useMemo(
-    () =>
-      students.find(
-        (student) => Number(student.id) === Number(form.student_id)
-      ),
-    [students, form.student_id]
-  );
-
-  const studentHistory = useMemo(() => {
-    if (!form.student_id) return [];
-
-    return visits.filter(
-      (visit) =>
-        Number(visit.student_id) === Number(form.student_id) &&
-        Number(visit.id) !== Number(editingVisit?.id)
+  const getStudent = (studentId) =>
+    students.find(
+      (student) =>
+        String(student.id) === String(studentId) ||
+        String(student.student_id) === String(studentId)
     );
-  }, [visits, form.student_id, editingVisit]);
+
+  const getStudentName = (visit) => {
+    const student =
+      getStudent(visit.student_id) ||
+      students.find(
+        (item) => String(item.id) === String(visit.student_id)
+      );
+
+    return (
+      visit.student_name ||
+      visit.full_name ||
+      student?.full_name ||
+      student?.name ||
+      "Unknown student"
+    );
+  };
+
+  const getStudentNumber = (visit) => {
+    const student = getStudent(visit.student_id);
+
+    return (
+      visit.student_number ||
+      student?.student_id ||
+      visit.student_code ||
+      "—"
+    );
+  };
 
   const filteredVisits = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
+    return visits.filter((visit) => {
+      const studentName = getStudentName(visit).toLowerCase();
+      const studentNumber = getStudentNumber(visit).toLowerCase();
+      const reason = String(visit.reason || "").toLowerCase();
+      const query = search.toLowerCase();
 
-    return visits
-      .filter((visit) => {
-        const studentName = getStudentName(visit, students);
-        const studentNumber = getStudentNumber(visit, students);
+      const matchesSearch =
+        !query ||
+        studentName.includes(query) ||
+        studentNumber.includes(query) ||
+        reason.includes(query) ||
+        String(visit.visit_type || "").toLowerCase().includes(query);
 
-        const matchesSearch =
-          !query ||
-          [
-            visit.id,
-            studentName,
-            studentNumber,
-            visit.reason,
-            visit.visit_type,
-            visit.physician_name,
-          ].some((value) =>
-            String(value ?? "").toLowerCase().includes(query)
-          );
+      const matchesType =
+        filterType === "all" || visit.visit_type === filterType;
 
-        const matchesType =
-          !filterVisitType || visit.visit_type === filterVisitType;
+      const visitDate = visit.visit_date
+        ? String(visit.visit_date).slice(0, 10)
+        : "";
 
-        const matchesDate =
-          !filterDate ||
-          String(visit.visit_date ?? "").slice(0, 10) === filterDate;
+      const matchesDate = !filterDate || visitDate === filterDate;
 
-        return matchesSearch && matchesType && matchesDate;
-      })
-      .sort((a, b) => Number(b.id) - Number(a.id));
-  }, [visits, students, searchText, filterVisitType, filterDate]);
-
-  const updateField = (event) => {
-    const { name, value, type, checked } = event.target;
-
-    setForm((current) => ({
-      ...current,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
+      return matchesSearch && matchesType && matchesDate;
+    });
+  }, [visits, students, search, filterType, filterDate]);
 
   const openNewForm = () => {
     setEditingVisit(null);
-    setForm(emptyForm());
-    setError("");
-    setSuccess("");
-    setShowForm(true);
-  };
-
-  const startEditingVisit = (visit) => {
-    const rawVitals = getVitalSigns(visit);
-    const vitalValues = {
-      blood_pressure: "",
-      temperature: "",
-      pulse_rate: "",
-      respiratory_rate: "",
-      oxygen_saturation: "",
-      weight: "",
-    };
-
-    const labels = {
-      blood_pressure: /(?:BP|blood pressure)\s*:\s*([^,\n]+)/i,
-      temperature: /(?:temperature|temp)\s*:\s*([^,\n]+)/i,
-      pulse_rate: /(?:pulse(?: rate)?|heart rate)\s*:\s*([^,\n]+)/i,
-      respiratory_rate: /(?:respiratory rate|resp rate|RR)\s*:\s*([^,\n]+)/i,
-      oxygen_saturation: /(?:oxygen saturation|SpO2|O2 sat)\s*:\s*([^,\n]+)/i,
-      weight: /weight\s*:\s*([^,\n]+)/i,
-    };
-
-    Object.entries(labels).forEach(([key, regex]) => {
-      const match = rawVitals.match(regex);
-      if (match) vitalValues[key] = match[1].trim();
-    });
-
-    setEditingVisit(visit);
-    setSelectedVisit(null);
-    setError("");
-    setSuccess("");
     setForm({
-      ...emptyForm(),
-      student_id: String(visit.student_id ?? ""),
-      visit_type: visit.visit_type || VISIT_TYPES[0],
-      visit_date: String(visit.visit_date ?? "").slice(0, 10),
-      visit_time: String(visit.visit_time ?? "").slice(0, 5),
-      physician_name: visit.physician_name || "",
-      reason: visit.reason || "",
-      medical_history: visit.medical_history || "",
-      ...vitalValues,
-      assessment: visit.assessment || "",
-      treatment: visit.treatment || "",
-      starter_dose: visit.starter_dose || "",
-      procedure_name: visit.procedure_name || "",
-      advice: visit.advice || "",
-      remarks: visit.remarks || "",
-      follow_up_required: Number(visit.follow_up_required) === 1,
+      ...emptyForm,
+      visit_date: new Date().toLocaleDateString("en-CA"),
     });
-
+    setError("");
+    setSuccess("");
     setShowForm(true);
   };
 
-  const closeForm = () => {
-    setShowForm(false);
-    setEditingVisit(null);
-    setForm(emptyForm());
+  const openEditForm = (visit) => {
+    setEditingVisit(visit);
+
+    const dateValue = visit.visit_date
+      ? String(visit.visit_date).slice(0, 10)
+      : emptyForm.visit_date;
+
+    setForm({
+      ...emptyForm,
+      ...visit,
+      student_id: String(visit.student_id || ""),
+      visit_date: dateValue,
+      visit_time: visit.visit_time
+        ? String(visit.visit_time).slice(0, 5)
+        : "",
+      follow_up_required:
+        Boolean(visit.follow_up_required) ||
+        visit.follow_up_required === 1 ||
+        visit.follow_up_required === "1",
+    });
+
     setError("");
+    setSuccess("");
+    setShowForm(true);
+  };
+
+  const handleChange = (event) => {
+    const { name, value, type, checked } = event.target;
+
+    setForm((previous) => ({
+      ...previous,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -415,8 +248,8 @@ export default function Services() {
       return;
     }
 
-    if (!form.visit_type || !form.visit_date || !form.visit_time) {
-      setError("Please complete the visit type, date, and time.");
+    if (!form.visit_date || !form.visit_time) {
+      setError("Please provide the visit date and time.");
       return;
     }
 
@@ -425,112 +258,35 @@ export default function Services() {
       return;
     }
 
-    const numericFields = [
-      ["Temperature", form.temperature],
-      ["Pulse rate", form.pulse_rate],
-      ["Respiratory rate", form.respiratory_rate],
-      ["Oxygen saturation", form.oxygen_saturation],
-      ["Weight", form.weight],
-    ];
+    const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
 
-    for (const [label, value] of numericFields) {
-      if (value.trim() && !Number.isFinite(Number(value))) {
-        setError(`${label} must be a valid number.`);
-        return;
-      }
-    }
-
-    const warnings = [];
-
-    if (
-      form.temperature &&
-      (Number(form.temperature) < 30 || Number(form.temperature) > 45)
-    ) {
-      warnings.push("Temperature is outside the review range of 30–45 °C.");
-    }
-
-    if (
-      form.pulse_rate &&
-      (Number(form.pulse_rate) < 30 || Number(form.pulse_rate) > 220)
-    ) {
-      warnings.push("Pulse rate is outside the review range of 30–220 bpm.");
-    }
-
-    if (
-      form.respiratory_rate &&
-      (Number(form.respiratory_rate) < 5 ||
-        Number(form.respiratory_rate) > 60)
-    ) {
-      warnings.push("Respiratory rate is outside the review range of 5–60.");
-    }
-
-    if (
-      form.oxygen_saturation &&
-      (Number(form.oxygen_saturation) < 70 ||
-        Number(form.oxygen_saturation) > 100)
-    ) {
-      warnings.push("Oxygen saturation is outside the review range of 70–100%.");
-    }
-
-    if (
-      form.weight &&
-      (Number(form.weight) <= 0 || Number(form.weight) > 500)
-    ) {
-      warnings.push("Please review the entered weight.");
-    }
-
-    if (warnings.length && !window.confirm(warnings.join("\n") + "\n\nContinue saving?")) {
-      return;
-    }
-
-    let user = {};
-
-    try {
-      user = JSON.parse(localStorage.getItem("user") || "{}");
-    } catch {
-      user = {};
-    }
-
-    const staffId = user.id || user.staff_id;
-
-    if (!staffId) {
-      setError("Your staff ID is missing. Please log out and log in again.");
-      return;
-    }
-
-    const vitalParts = [
-      form.blood_pressure.trim() && `BP: ${form.blood_pressure.trim()}`,
-      form.temperature.trim() && `Temperature: ${form.temperature.trim()} C`,
-      form.pulse_rate.trim() && `Pulse: ${form.pulse_rate.trim()} bpm`,
-      form.respiratory_rate.trim() &&
-        `Respiratory Rate: ${form.respiratory_rate.trim()}`,
-      form.oxygen_saturation.trim() &&
-        `Oxygen Saturation: ${form.oxygen_saturation.trim()}%`,
-      form.weight.trim() && `Weight: ${form.weight.trim()} kg`,
-    ].filter(Boolean);
+    const vitalSigns = [
+      form.blood_pressure && `BP: ${form.blood_pressure}`,
+      form.temperature && `Temp: ${form.temperature} °C`,
+      form.pulse_rate && `Pulse: ${form.pulse_rate} bpm`,
+      form.respiratory_rate && `RR: ${form.respiratory_rate}/min`,
+      form.oxygen_saturation && `SpO₂: ${form.oxygen_saturation}%`,
+      form.weight && `Weight: ${form.weight} kg`,
+    ]
+      .filter(Boolean)
+      .join(", ");
 
     const payload = {
       student_id: Number(form.student_id),
-      staff_id: Number(staffId),
-      physician_name: form.physician_name.trim() || null,
+      staff_id: Number(storedUser.id || storedUser.staff_id || 1),
+      physician_name: form.physician_name,
       visit_type: form.visit_type,
       visit_date: form.visit_date,
       visit_time: form.visit_time,
       reason: form.reason.trim(),
-      medical_history: form.medical_history.trim(),
-      vital_signs: vitalParts.length
-        ? vitalParts.join(", ")
-        : editingVisit
-          ? getVitalSigns(editingVisit) === "—"
-            ? ""
-            : getVitalSigns(editingVisit)
-          : "",
-      assessment: form.assessment.trim(),
-      treatment: form.treatment.trim(),
-      starter_dose: form.starter_dose.trim(),
-      procedure_name: form.procedure_name.trim(),
-      advice: form.advice.trim(),
-      remarks: form.remarks.trim(),
+      medical_history: form.medical_history,
+      vital_signs: vitalSigns,
+      assessment: form.assessment,
+      treatment: form.treatment,
+      starter_dose: form.starter_dose,
+      procedure_name: form.procedure_name,
+      advice: form.advice,
+      remarks: form.remarks,
       follow_up_required: form.follow_up_required ? 1 : 0,
     };
 
@@ -547,705 +303,666 @@ export default function Services() {
 
       setShowForm(false);
       setEditingVisit(null);
-      setForm(emptyForm());
+      setForm(emptyForm);
       await loadData();
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to save the clinic visit. Please check your entries and try again."
+          "Unable to save the clinic visit. Please check your API and try again."
       );
     } finally {
       setSaving(false);
     }
   };
 
-  const handlePrintClinicSlip = () => {
-    if (!selectedVisit) return;
-
-    const escapeHtml = (value) =>
-      String(value ?? "—").replace(/[&<>"']/g, (character) => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[character]);
-
-    const fields = [
-      ["Visit ID", `#${selectedVisit.id}`],
-      ["Student Name", getStudentName(selectedVisit, students)],
-      ["Student Number", getStudentNumber(selectedVisit, students)],
-      ["Visit Type", selectedVisit.visit_type],
-      ["Visit Date", formatDate(selectedVisit.visit_date)],
-      ["Visit Time", formatTime(selectedVisit.visit_time)],
-      ["Physician / Attending Staff", selectedVisit.physician_name],
-      ["Reason for Visit", selectedVisit.reason],
-      ["Medical History", selectedVisit.medical_history],
-      ["Vital Signs", getVitalSigns(selectedVisit)],
-      ["Assessment / Findings", selectedVisit.assessment],
-      ["Treatment", selectedVisit.treatment],
-      ["Starter Dose / Medication Details", selectedVisit.starter_dose],
-      ["Procedure", selectedVisit.procedure_name],
-      ["Advice / Instructions", selectedVisit.advice],
-      ["Remarks", selectedVisit.remarks],
-      [
-        "Follow-up Required",
-        Number(selectedVisit.follow_up_required) === 1 ? "Yes" : "No",
-      ],
-    ];
-
-    const printWindow = window.open("", "_blank", "width=850,height=900");
+  const handlePrintClinicSlip = (visit) => {
+    const printWindow = window.open("", "_blank", "width=850,height=700");
 
     if (!printWindow) {
-      window.alert("Please allow pop-ups for this page to print the clinic slip.");
+      setError("Please allow pop-ups to print the clinic slip.");
       return;
     }
+
+    const studentName = getStudentName(visit);
+    const studentNumber = getStudentNumber(visit);
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
-        <head>
-          <title>Clinic Visit Slip #${escapeHtml(selectedVisit.id)}</title>
-          <style>
-            @page { size: A4; margin: 18mm; }
-            body {
-              font-family: Arial, sans-serif;
-              color: #222;
-              font-size: 12px;
-              line-height: 1.5;
-            }
-            header {
-              text-align: center;
-              border-bottom: 2px solid #2e7d32;
-              padding-bottom: 12px;
-              margin-bottom: 20px;
-            }
-            h1 { color: #2e7d32; margin: 0; font-size: 22px; }
-            h2 { margin: 5px 0 0; font-size: 16px; }
-            .field {
-              display: grid;
-              grid-template-columns: 190px 1fr;
-              gap: 12px;
-              padding: 8px 0;
-              border-bottom: 1px solid #ddd;
-              break-inside: avoid;
-            }
-            .label { font-weight: bold; }
-            .value { white-space: pre-wrap; overflow-wrap: anywhere; }
-            .signatures {
-              display: flex;
-              justify-content: space-between;
-              gap: 40px;
-              margin-top: 55px;
-            }
-            .signature {
-              flex: 1;
-              text-align: center;
-              border-top: 1px solid #333;
-              padding-top: 8px;
-            }
-            .footer {
-              margin-top: 25px;
-              font-size: 10px;
-              color: #666;
-              text-align: center;
-            }
-          </style>
-        </head>
-        <body>
-          <header>
-            <h1>SCHOOL CLINIC</h1>
-            <h2>CLINIC VISIT SLIP</h2>
-          </header>
-          ${fields.map(([label, value]) => `
-            <div class="field">
-              <div class="label">${escapeHtml(label)}</div>
-              <div class="value">${escapeHtml(value || "—")}</div>
-            </div>
-          `).join("")}
-          <div class="signatures">
-            <div class="signature">Physician / Attending Staff</div>
-            <div class="signature">Signature</div>
-          </div>
-          <div class="footer">School Clinic Management System</div>
-          <script>
-            window.onload = function () {
-              window.focus();
-              window.print();
-            };
-          </script>
-        </body>
+      <head>
+        <title>Clinic Visit Slip</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 32px; color: #222; }
+          h1, h2, p { margin-top: 0; }
+          h1 { text-align: center; color: #2e7d32; }
+          .subtitle { text-align: center; margin-bottom: 28px; }
+          .section { margin: 18px 0; padding: 14px; border: 1px solid #ddd; }
+          .label { font-weight: bold; }
+          .line { margin: 10px 0; }
+          @media print { button { display: none; } }
+        </style>
+      </head>
+      <body>
+        <h1>UNIVERSITY OF ILOILO · PHINMA</h1>
+        <p class="subtitle">School Clinic — Clinic Visit Slip</p>
+        <div class="section">
+          <h2>Student Information</h2>
+          <p><span class="label">Name:</span> ${escapeHtml(studentName)}</p>
+          <p><span class="label">Student Number:</span> ${escapeHtml(studentNumber)}</p>
+        </div>
+        <div class="section">
+          <h2>Visit Information</h2>
+          <p><span class="label">Visit Type:</span> ${escapeHtml(visit.visit_type)}</p>
+          <p><span class="label">Date:</span> ${escapeHtml(formatDate(visit.visit_date))}</p>
+          <p><span class="label">Time:</span> ${escapeHtml(formatTime(visit.visit_time))}</p>
+          <p><span class="label">Reason:</span> ${escapeHtml(visit.reason)}</p>
+          <p><span class="label">Vital Signs:</span> ${escapeHtml(getVitalSigns(visit))}</p>
+          <p><span class="label">Medical History:</span> ${escapeHtml(visit.medical_history)}</p>
+          <p><span class="label">Assessment:</span> ${escapeHtml(visit.assessment)}</p>
+          <p><span class="label">Treatment:</span> ${escapeHtml(visit.treatment)}</p>
+          <p><span class="label">Procedure:</span> ${escapeHtml(visit.procedure_name)}</p>
+          <p><span class="label">Advice:</span> ${escapeHtml(visit.advice)}</p>
+          <p><span class="label">Remarks:</span> ${escapeHtml(visit.remarks)}</p>
+        </div>
+        <div class="line">Clinic Staff Signature: __________________________</div>
+        <button onclick="window.print()">Print Clinic Slip</button>
+      </body>
       </html>
     `);
 
     printWindow.document.close();
   };
 
-  const clearFilters = () => {
-    setSearchText("");
-    setFilterVisitType("");
-    setFilterDate("");
-  };
+  const renderField = (
+    label,
+    name,
+    { type = "text", required = false, placeholder = "", step } = {}
+  ) => (
+    <label className="services-field" key={name}>
+      <span>
+        {label}
+        {required && <span className="services-required"> *</span>}
+      </span>
+      <input
+        type={type}
+        name={name}
+        value={form[name] ?? ""}
+        onChange={handleChange}
+        placeholder={placeholder}
+        required={required}
+        step={step}
+      />
+    </label>
+  );
+
+  const selectedStudent = getStudent(form.student_id);
 
   return (
     <Layout>
-      <div style={styles.page}>
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: 12,
-          }}
-        >
+      <main className="services-page">
+        <header className="services-header">
           <div>
-            <h1 style={styles.heading}>Clinic Services</h1>
-            <p style={styles.subtitle}>
-              Record and view clinic visits and consultations
-            </p>
+            <span className="services-eyebrow">
+              UNIVERSITY OF ILOILO · PHINMA
+            </span>
+            <h1>Clinic Services</h1>
+            <p>Record and view clinic visits and consultations.</p>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button style={styles.secondary} onClick={loadData}>
-              Refresh
+          <div className="services-header-actions">
+            <button
+              type="button"
+              className="services-btn services-btn-secondary"
+              onClick={loadData}
+              disabled={loading}
+            >
+              {loading ? "Refreshing..." : "↻ Refresh"}
             </button>
-            <button style={styles.button} onClick={openNewForm}>
+            <button
+              type="button"
+              className="services-btn services-btn-primary"
+              onClick={openNewForm}
+            >
               + Record Clinic Visit
             </button>
           </div>
-        </div>
+        </header>
 
-        {error && !showForm && (
-          <div
-            role="alert"
-            style={{
-              background: "#ffebee",
-              color: "#b71c1c",
-              padding: 12,
-              borderRadius: 6,
-              marginTop: 15,
-            }}
-          >
+        {error && (
+          <div className="services-alert error" role="alert">
             {error}
+            <button type="button" onClick={() => setError("")}>×</button>
           </div>
         )}
 
-        {success && !showForm && (
-          <div
-            role="status"
-            style={{
-              background: "#e8f5e9",
-              color: "#1b5e20",
-              padding: 12,
-              borderRadius: 6,
-              marginTop: 15,
-            }}
-          >
+        {success && (
+          <div className="services-alert success" role="status">
             {success}
+            <button type="button" onClick={() => setSuccess("")}>×</button>
           </div>
         )}
+
+        <section className="services-summary-grid">
+          <article className="services-summary-card">
+            <div className="services-summary-icon green">✚</div>
+            <div>
+              <span>Total Visits</span>
+              <strong>{visits.length}</strong>
+            </div>
+          </article>
+
+          <article className="services-summary-card">
+            <div className="services-summary-icon blue">▣</div>
+            <div>
+              <span>Students Registered</span>
+              <strong>{students.length}</strong>
+            </div>
+          </article>
+
+          <article className="services-summary-card">
+            <div className="services-summary-icon orange">◷</div>
+            <div>
+              <span>Today's Visits</span>
+              <strong>
+                {
+                  visits.filter(
+                    (visit) =>
+                      String(visit.visit_date || "").slice(0, 10) ===
+                      new Date().toLocaleDateString("en-CA")
+                  ).length
+                }
+              </strong>
+            </div>
+          </article>
+        </section>
 
         {showForm && (
-          <form style={styles.card} onSubmit={handleSubmit}>
-            <h2>{editingVisit ? "Edit Clinic Visit" : "Record Clinic Visit"}</h2>
-
-            {error && (
-              <div
-                role="alert"
-                style={{
-                  background: "#ffebee",
-                  color: "#b71c1c",
-                  padding: 12,
-                  borderRadius: 6,
-                  marginBottom: 15,
+          <section className="services-panel" id="visit-form">
+            <div className="services-panel-heading">
+              <div>
+                <h2>{editingVisit ? "Edit Clinic Visit" : "Record Clinic Visit"}</h2>
+                <p>Enter the student and consultation details below.</p>
+              </div>
+              <button
+                type="button"
+                className="services-btn services-btn-secondary"
+                onClick={() => {
+                  setShowForm(false);
+                  setEditingVisit(null);
+                  setError("");
                 }}
               >
-                {error}
-              </div>
-            )}
-
-            <div style={styles.grid}>
-              <Field label="Student *">
-                <select
-                  name="student_id"
-                  value={form.student_id}
-                  onChange={updateField}
-                  required
-                  style={styles.input}
-                >
-                  <option value="">Select Student</option>
-                  {students.map((student) => (
-                    <option key={student.id} value={student.id}>
-                      {student.full_name} ({student.student_id})
-                    </option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Visit Type *">
-                <select
-                  name="visit_type"
-                  value={form.visit_type}
-                  onChange={updateField}
-                  required
-                  style={styles.input}
-                >
-                  {VISIT_TYPES.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label="Visit Date *">
-                <input
-                  type="date"
-                  name="visit_date"
-                  value={form.visit_date}
-                  onChange={updateField}
-                  required
-                  style={styles.input}
-                />
-              </Field>
-
-              <Field label="Visit Time *">
-                <input
-                  type="time"
-                  name="visit_time"
-                  value={form.visit_time}
-                  onChange={updateField}
-                  required
-                  style={styles.input}
-                />
-              </Field>
-
-              <Field label="Physician / Attending Staff">
-                <input
-                  name="physician_name"
-                  value={form.physician_name}
-                  onChange={updateField}
-                  style={styles.input}
-                  placeholder="Enter physician name"
-                />
-              </Field>
-
-              <Field label="Reason for Visit *">
-                <input
-                  name="reason"
-                  value={form.reason}
-                  onChange={updateField}
-                  required
-                  style={styles.input}
-                  placeholder="Reason for the visit"
-                />
-              </Field>
-            </div>
-
-            {selectedStudent && (
-              <div
-                style={{
-                  background: "#f1f8e9",
-                  padding: 14,
-                  borderRadius: 6,
-                  marginTop: 18,
-                }}
-              >
-                <strong>Selected Student</strong>
-                <p style={{ marginBottom: 0 }}>
-                  {selectedStudent.full_name} — {selectedStudent.student_id}
-                </p>
-                <p style={{ marginBottom: 0 }}>
-                  Course: {selectedStudent.course || "—"} | Age: {selectedStudent.age ?? "—"}
-                </p>
-              </div>
-            )}
-
-            {form.visit_type.includes("Follow-up") && form.student_id && (
-              <div style={{ marginTop: 18 }}>
-                <h3>Previous Clinic Visits</h3>
-                {studentHistory.length === 0 ? (
-                  <p>No previous visits found for this student.</p>
-                ) : (
-                  <ul>
-                    {studentHistory.map((visit) => (
-                      <li key={visit.id}>
-                        #{visit.id} — {visit.visit_type} —{" "}
-                        {formatDate(visit.visit_date)} — {visit.reason || "No reason recorded"}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
-            <h3 style={{ marginTop: 24 }}>Medical Information</h3>
-
-            <div style={{ ...styles.grid, marginTop: 15 }}>
-              <Field label="Medical History">
-                <textarea
-                  name="medical_history"
-                  value={form.medical_history}
-                  onChange={updateField}
-                  style={styles.textarea}
-                />
-              </Field>
-              <Field label="Vital Signs — Blood Pressure">
-                <input
-                  name="blood_pressure"
-                  value={form.blood_pressure}
-                  onChange={updateField}
-                  placeholder="e.g. 120/80"
-                  style={styles.input}
-                />
-              </Field>
-              <Field label="Temperature (°C)">
-                <input
-                  type="number"
-                  step="any"
-                  name="temperature"
-                  value={form.temperature}
-                  onChange={updateField}
-                  style={styles.input}
-                />
-              </Field>
-              <Field label="Pulse Rate (bpm)">
-                <input
-                  type="number"
-                  step="any"
-                  name="pulse_rate"
-                  value={form.pulse_rate}
-                  onChange={updateField}
-                  style={styles.input}
-                />
-              </Field>
-              <Field label="Respiratory Rate">
-                <input
-                  type="number"
-                  step="any"
-                  name="respiratory_rate"
-                  value={form.respiratory_rate}
-                  onChange={updateField}
-                  style={styles.input}
-                />
-              </Field>
-              <Field label="Oxygen Saturation (%)">
-                <input
-                  type="number"
-                  step="any"
-                  name="oxygen_saturation"
-                  value={form.oxygen_saturation}
-                  onChange={updateField}
-                  style={styles.input}
-                />
-              </Field>
-              <Field label="Weight (kg)">
-                <input
-                  type="number"
-                  step="any"
-                  name="weight"
-                  value={form.weight}
-                  onChange={updateField}
-                  style={styles.input}
-                />
-              </Field>
-            </div>
-
-            <h3 style={{ marginTop: 24 }}>Treatment and Instructions</h3>
-
-            <div style={{ ...styles.grid, marginTop: 15 }}>
-              <Field label="Assessment / Findings">
-                <textarea
-                  name="assessment"
-                  value={form.assessment}
-                  onChange={updateField}
-                  style={styles.textarea}
-                />
-              </Field>
-              <Field label="Treatment">
-                <textarea
-                  name="treatment"
-                  value={form.treatment}
-                  onChange={updateField}
-                  style={styles.textarea}
-                />
-              </Field>
-              <Field label="Starter Dose / Medication Details">
-                <textarea
-                  name="starter_dose"
-                  value={form.starter_dose}
-                  onChange={updateField}
-                  style={styles.textarea}
-                />
-              </Field>
-              <Field label="Procedure">
-                <textarea
-                  name="procedure_name"
-                  value={form.procedure_name}
-                  onChange={updateField}
-                  style={styles.textarea}
-                />
-              </Field>
-              <Field label="Advice / Instructions">
-                <textarea
-                  name="advice"
-                  value={form.advice}
-                  onChange={updateField}
-                  style={styles.textarea}
-                />
-              </Field>
-              <Field label="Remarks">
-                <textarea
-                  name="remarks"
-                  value={form.remarks}
-                  onChange={updateField}
-                  style={styles.textarea}
-                />
-              </Field>
-            </div>
-
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 9,
-                marginTop: 18,
-              }}
-            >
-              <input
-                type="checkbox"
-                name="follow_up_required"
-                checked={form.follow_up_required}
-                onChange={updateField}
-              />
-              Follow-up required
-            </label>
-
-            <div style={{ display: "flex", gap: 10, marginTop: 24, flexWrap: "wrap" }}>
-              <button type="submit" style={styles.button} disabled={saving}>
-                {saving
-                  ? "Saving..."
-                  : editingVisit
-                    ? "Update Clinic Visit"
-                    : "Save Clinic Visit"}
-              </button>
-              <button type="button" style={styles.secondary} onClick={closeForm}>
                 Cancel
               </button>
             </div>
-          </form>
+
+            <form onSubmit={handleSubmit}>
+              <h3 className="services-form-section-title">Student and Visit Details</h3>
+
+              <div className="services-form-grid">
+                <label className="services-field">
+                  <span>Student <span className="services-required">*</span></span>
+                  <select
+                    name="student_id"
+                    value={form.student_id}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Select a student</option>
+                    {students.map((student) => (
+                      <option key={student.id} value={student.id}>
+                        {student.full_name || student.name} — {student.student_id}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="services-field">
+                  <span>Visit Type <span className="services-required">*</span></span>
+                  <select
+                    name="visit_type"
+                    value={form.visit_type}
+                    onChange={handleChange}
+                    required
+                  >
+                    {VISIT_TYPES.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+
+                {renderField("Visit Date", "visit_date", {
+                  type: "date",
+                  required: true,
+                })}
+                {renderField("Visit Time", "visit_time", {
+                  type: "time",
+                  required: true,
+                })}
+                {renderField("Physician / Clinic Staff", "physician_name", {
+                  placeholder: "Enter name",
+                })}
+              </div>
+
+              {selectedStudent && (
+                <div className="services-student-preview">
+                  <strong>{selectedStudent.full_name || selectedStudent.name}</strong>
+                  <span>Student No.: {selectedStudent.student_id}</span>
+                  <span>{selectedStudent.course || "Course not specified"}</span>
+                </div>
+              )}
+
+              <h3 className="services-form-section-title">Consultation Details</h3>
+              <div className="services-form-grid">
+                <label className="services-field services-field-wide">
+                  <span>Reason for Visit <span className="services-required">*</span></span>
+                  <textarea
+                    name="reason"
+                    value={form.reason}
+                    onChange={handleChange}
+                    rows="3"
+                    placeholder="Describe the reason for the visit"
+                    required
+                  />
+                </label>
+
+                <label className="services-field services-field-wide">
+                  <span>Medical History</span>
+                  <textarea
+                    name="medical_history"
+                    value={form.medical_history}
+                    onChange={handleChange}
+                    rows="2"
+                    placeholder="Relevant medical history, allergies, or existing conditions"
+                  />
+                </label>
+              </div>
+
+              <h3 className="services-form-section-title">Vital Signs</h3>
+              <div className="services-form-grid">
+                {renderField("Blood Pressure", "blood_pressure", {
+                  placeholder: "e.g. 120/80",
+                })}
+                {renderField("Temperature (°C)", "temperature", {
+                  type: "number",
+                  step: "0.1",
+                  placeholder: "e.g. 36.5",
+                })}
+                {renderField("Pulse Rate (bpm)", "pulse_rate", {
+                  type: "number",
+                  placeholder: "e.g. 72",
+                })}
+                {renderField("Respiratory Rate (/min)", "respiratory_rate", {
+                  type: "number",
+                  placeholder: "e.g. 18",
+                })}
+                {renderField("Oxygen Saturation (%)", "oxygen_saturation", {
+                  type: "number",
+                  step: "0.1",
+                  placeholder: "e.g. 98",
+                })}
+                {renderField("Weight (kg)", "weight", {
+                  type: "number",
+                  step: "0.1",
+                  placeholder: "e.g. 55.0",
+                })}
+              </div>
+
+              <h3 className="services-form-section-title">Assessment and Treatment</h3>
+              <div className="services-form-grid">
+                <label className="services-field">
+                  <span>Assessment / Findings</span>
+                  <textarea
+                    name="assessment"
+                    value={form.assessment}
+                    onChange={handleChange}
+                    rows="3"
+                  />
+                </label>
+
+                <label className="services-field">
+                  <span>Treatment</span>
+                  <textarea
+                    name="treatment"
+                    value={form.treatment}
+                    onChange={handleChange}
+                    rows="3"
+                  />
+                </label>
+
+                {renderField("Starter Dose / Medication", "starter_dose", {
+                  placeholder: "If applicable",
+                })}
+                {renderField("Procedure", "procedure_name", {
+                  placeholder: "If applicable",
+                })}
+
+                <label className="services-field services-field-wide">
+                  <span>Advice / Instructions</span>
+                  <textarea
+                    name="advice"
+                    value={form.advice}
+                    onChange={handleChange}
+                    rows="2"
+                  />
+                </label>
+
+                <label className="services-field services-field-wide">
+                  <span>Remarks</span>
+                  <textarea
+                    name="remarks"
+                    value={form.remarks}
+                    onChange={handleChange}
+                    rows="2"
+                  />
+                </label>
+              </div>
+
+              <label className="services-checkbox">
+                <input
+                  type="checkbox"
+                  name="follow_up_required"
+                  checked={form.follow_up_required}
+                  onChange={handleChange}
+                />
+                <span>Follow-up visit required</span>
+              </label>
+
+              <div className="services-form-actions">
+                <button
+                  type="button"
+                  className="services-btn services-btn-secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingVisit(null);
+                    setError("");
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="services-btn services-btn-primary"
+                  disabled={saving}
+                >
+                  {saving
+                    ? "Saving..."
+                    : editingVisit
+                    ? "Update Clinic Visit"
+                    : "Save Clinic Visit"}
+                </button>
+              </div>
+            </form>
+          </section>
         )}
 
-        <section style={styles.card}>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              alignItems: "center",
-              gap: 10,
-            }}
-          >
+        <section className="services-panel">
+          <div className="services-panel-heading">
             <div>
-              <h2 style={{ marginTop: 0, marginBottom: 5 }}>Recorded Clinic Visits</h2>
-              <span style={{ color: "#607d8b", fontSize: 13 }}>
-                {filteredVisits.length} visit(s) displayed
-              </span>
+              <h2>Clinic Visit Records</h2>
+              <p>Search and manage recorded consultations.</p>
             </div>
-            <button style={styles.secondary} onClick={clearFilters}>
-              Clear Filters
-            </button>
+            <span className="services-count">{filteredVisits.length} records</span>
           </div>
 
-          <div style={{ ...styles.grid, marginTop: 18 }}>
-            <Field label="Search Visits">
+          <div className="services-filter-grid">
+            <label className="services-field">
+              <span>Search</span>
               <input
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Search student, number, reason..."
-                style={styles.input}
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Student, student number, reason..."
               />
-            </Field>
+            </label>
 
-            <Field label="Filter by Visit Type">
+            <label className="services-field">
+              <span>Visit Type</span>
               <select
-                value={filterVisitType}
-                onChange={(event) => setFilterVisitType(event.target.value)}
-                style={styles.input}
+                value={filterType}
+                onChange={(event) => setFilterType(event.target.value)}
               >
-                <option value="">All Visit Types</option>
+                <option value="all">All visit types</option>
                 {VISIT_TYPES.map((type) => (
                   <option key={type} value={type}>{type}</option>
                 ))}
               </select>
-            </Field>
+            </label>
 
-            <Field label="Filter by Visit Date">
+            <label className="services-field">
+              <span>Visit Date</span>
               <input
                 type="date"
                 value={filterDate}
                 onChange={(event) => setFilterDate(event.target.value)}
-                style={styles.input}
               />
-            </Field>
+            </label>
+
+            <button
+              type="button"
+              className="services-btn services-btn-secondary services-filter-clear"
+              onClick={() => {
+                setSearch("");
+                setFilterType("all");
+                setFilterDate("");
+              }}
+            >
+              Clear Filters
+            </button>
           </div>
 
-          {loading ? (
-            <p>Loading clinic visits...</p>
-          ) : (
-            <div style={styles.tableWrap}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    {[
-                      "Visit ID",
-                      "Student",
-                      "Student Number",
-                      "Visit Type",
-                      "Date",
-                      "Time",
-                      "Reason",
-                      "Follow-up",
-                      "Actions",
-                    ].map((heading) => (
-                      <th key={heading} style={styles.th}>{heading}</th>
-                    ))}
+          <div className="services-table-wrapper">
+            <table className="services-table">
+              <thead>
+                <tr>
+                  <th>Visit ID</th>
+                  <th>Student</th>
+                  <th>Visit Type</th>
+                  <th>Date & Time</th>
+                  <th>Reason</th>
+                  <th>Follow-up</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredVisits.map((visit) => (
+                  <tr key={visit.id}>
+                    <td>
+                      <span className="services-visit-id">
+                        #{visit.id}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="services-student-name">
+                        {getStudentName(visit)}
+                      </div>
+                      <div className="services-muted">
+                        {getStudentNumber(visit)}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="services-visit-type">
+                        {visit.visit_type}
+                      </span>
+                    </td>
+                    <td>
+                      <div>{formatDate(visit.visit_date)}</div>
+                      <div className="services-muted">
+                        {formatTime(visit.visit_time)}
+                      </div>
+                    </td>
+                    <td>
+                      <span className="services-reason">
+                        {displayValue(visit.reason)}
+                      </span>
+                    </td>
+                    <td>
+                      {Boolean(visit.follow_up_required) ||
+                      visit.follow_up_required === 1 ||
+                      visit.follow_up_required === "1" ? (
+                        <span className="services-follow-up yes">Required</span>
+                      ) : (
+                        <span className="services-follow-up no">Not required</span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="services-row-actions">
+                        <button
+                          type="button"
+                          className="services-action-btn"
+                          onClick={() => setSelectedVisit(visit)}
+                          title="View details"
+                        >
+                          View
+                        </button>
+                        <button
+                          type="button"
+                          className="services-action-btn"
+                          onClick={() => openEditForm(visit)}
+                          title="Edit visit"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="services-action-btn"
+                          onClick={() => handlePrintClinicSlip(visit)}
+                          title="Print clinic slip"
+                        >
+                          Print
+                        </button>
+                      </div>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {filteredVisits.map((visit) => (
-                    <tr key={visit.id}>
-                      <td style={styles.td}>#{visit.id}</td>
-                      <td style={styles.td}>{getStudentName(visit, students)}</td>
-                      <td style={styles.td}>{getStudentNumber(visit, students)}</td>
-                      <td style={styles.td}>{visit.visit_type}</td>
-                      <td style={styles.td}>{formatDate(visit.visit_date)}</td>
-                      <td style={styles.td}>{formatTime(visit.visit_time)}</td>
-                      <td style={styles.td}>{displayValue(visit.reason)}</td>
-                      <td style={styles.td}>
-                        {Number(visit.follow_up_required) === 1 ? "Yes" : "No"}
-                      </td>
-                      <td style={styles.td}>
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          <button
-                            style={styles.secondary}
-                            onClick={() => setSelectedVisit(visit)}
-                          >
-                            View Details
-                          </button>
-                          <button
-                            style={styles.button}
-                            onClick={() => startEditingVisit(visit)}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredVisits.length === 0 && (
-                    <tr>
-                      <td colSpan={9} style={{ ...styles.td, textAlign: "center" }}>
-                        No clinic visits match your filters.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+                ))}
+
+                {!loading && filteredVisits.length === 0 && (
+                  <tr>
+                    <td colSpan="7">
+                      <div className="services-empty">
+                        <strong>No clinic visits found</strong>
+                        <span>Try changing your search or filters.</span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {loading && (
+                  <tr>
+                    <td colSpan="7">
+                      <div className="services-empty">Loading clinic visits...</div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </section>
 
         {selectedVisit && (
-          <div style={styles.overlay} onClick={() => setSelectedVisit(null)}>
+          <div
+            className="services-modal-overlay"
+            onClick={() => setSelectedVisit(null)}
+          >
             <section
+              className="services-modal"
               role="dialog"
               aria-modal="true"
               aria-labelledby="visit-details-title"
-              style={styles.modal}
               onClick={(event) => event.stopPropagation()}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: 10,
-                  flexWrap: "wrap",
-                }}
-              >
-                <h2 id="visit-details-title" style={{ marginTop: 0 }}>
-                  Clinic Visit Details #{selectedVisit.id}
-                </h2>
+              <div className="services-modal-header">
+                <div>
+                  <span className="services-eyebrow">CLINIC RECORD</span>
+                  <h2 id="visit-details-title">Visit #{selectedVisit.id} Details</h2>
+                </div>
                 <button
-                  style={styles.secondary}
+                  type="button"
+                  className="services-modal-close"
                   onClick={() => setSelectedVisit(null)}
+                  aria-label="Close visit details"
                 >
-                  Close
+                  ×
                 </button>
               </div>
 
-              <div style={styles.grid}>
-                <Detail
-                  label="Student Name"
-                  value={getStudentName(selectedVisit, students)}
-                />
-                <Detail
-                  label="Student Number"
-                  value={getStudentNumber(selectedVisit, students)}
-                />
+              <div className="services-details-grid">
+                <Detail label="Student" value={getStudentName(selectedVisit)} />
+                <Detail label="Student Number" value={getStudentNumber(selectedVisit)} />
                 <Detail label="Visit Type" value={selectedVisit.visit_type} />
-                <Detail label="Visit Date" value={formatDate(selectedVisit.visit_date)} />
-                <Detail label="Visit Time" value={formatTime(selectedVisit.visit_time)} />
-                <Detail
-                  label="Physician / Attending Staff"
-                  value={selectedVisit.physician_name}
-                />
-                <Detail label="Reason for Visit" value={selectedVisit.reason} />
+                <Detail label="Date" value={formatDate(selectedVisit.visit_date)} />
+                <Detail label="Time" value={formatTime(selectedVisit.visit_time)} />
+                <Detail label="Physician / Staff" value={selectedVisit.physician_name} />
+                <Detail label="Reason" value={selectedVisit.reason} />
                 <Detail label="Medical History" value={selectedVisit.medical_history} />
                 <Detail label="Vital Signs" value={getVitalSigns(selectedVisit)} />
-                <Detail label="Assessment / Findings" value={selectedVisit.assessment} />
+                <Detail label="Assessment" value={selectedVisit.assessment} />
                 <Detail label="Treatment" value={selectedVisit.treatment} />
-                <Detail
-                  label="Starter Dose / Medication Details"
-                  value={selectedVisit.starter_dose}
-                />
+                <Detail label="Medication / Starter Dose" value={selectedVisit.starter_dose} />
                 <Detail label="Procedure" value={selectedVisit.procedure_name} />
                 <Detail label="Advice / Instructions" value={selectedVisit.advice} />
                 <Detail label="Remarks" value={selectedVisit.remarks} />
                 <Detail
-                  label="Follow-up Required"
-                  value={Number(selectedVisit.follow_up_required) === 1 ? "Yes" : "No"}
+                  label="Follow-up"
+                  value={
+                    Boolean(selectedVisit.follow_up_required) ||
+                    selectedVisit.follow_up_required === 1 ||
+                    selectedVisit.follow_up_required === "1"
+                      ? "Required"
+                      : "Not required"
+                  }
                 />
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: 10,
-                  flexWrap: "wrap",
-                  marginTop: 24,
-                }}
-              >
-                <button style={styles.button} onClick={handlePrintClinicSlip}>
-                  Print Clinic Slip
-                </button>
+              <div className="services-modal-actions">
                 <button
-                  style={styles.secondary}
-                  onClick={() => startEditingVisit(selectedVisit)}
-                >
-                  Edit This Visit
-                </button>
-                <button
-                  style={styles.secondary}
+                  type="button"
+                  className="services-btn services-btn-secondary"
                   onClick={() => setSelectedVisit(null)}
                 >
-                  Close Details
+                  Close
+                </button>
+                <button
+                  type="button"
+                  className="services-btn services-btn-primary"
+                  onClick={() => {
+                    const visit = selectedVisit;
+                    setSelectedVisit(null);
+                    openEditForm(visit);
+                  }}
+                >
+                  Edit Visit
+                </button>
+                <button
+                  type="button"
+                  className="services-btn services-btn-secondary"
+                  onClick={() => handlePrintClinicSlip(selectedVisit)}
+                >
+                  Print Slip
                 </button>
               </div>
             </section>
           </div>
         )}
-      </div>
+      </main>
     </Layout>
   );
+}
+
+function Detail({ label, value }) {
+  return (
+    <div className="services-detail">
+      <span className="services-detail-label">{label}</span>
+      <span className="services-detail-value">{displayValue(value)}</span>
+    </div>
+  );
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
