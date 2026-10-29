@@ -238,3 +238,47 @@ exports.updateVisit = async (req, res) => {
     }
 };
 
+// Record generated clinic visit slip
+exports.createSlipRecord = async (req, res) => {
+    try {
+        const visitId = Number(req.params.id);
+        const staffId = req.userId;
+
+        if (!Number.isInteger(visitId) || visitId <= 0) {
+            return res.status(400).json({
+                message: "Invalid clinic visit ID."
+            });
+        }
+
+        // Confirm that the clinic visit exists
+        const [visits] = await db.execute(
+            "SELECT id FROM clinic_visits WHERE id = ?",
+            [visitId]
+        );
+
+        if (visits.length === 0) {
+            return res.status(404).json({
+                message: "Clinic visit not found."
+            });
+        }
+
+        // Save slip-generation metadata
+        const [result] = await db.execute(
+            `INSERT INTO clinic_slips
+                (visit_id, slip_type, generated_at, generated_by)
+             VALUES (?, ?, NOW(), ?)`,
+            [visitId, "Clinic Slip", staffId]
+        );
+
+        return res.status(201).json({
+            message: "Clinic slip record created successfully.",
+            slipId: result.insertId
+        });
+    } catch (error) {
+        console.error("Error recording clinic slip:", error);
+
+        return res.status(500).json({
+            message: "Error recording clinic slip."
+        });
+    }
+};

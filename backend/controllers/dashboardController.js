@@ -1,4 +1,3 @@
-
 const db = require("../config/db");
 
 exports.getStats = async (req, res) => {

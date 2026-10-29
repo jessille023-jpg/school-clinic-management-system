@@ -1,4 +1,3 @@
-
 const db = require("../config/db");
 
 // GET: Retrieve active students

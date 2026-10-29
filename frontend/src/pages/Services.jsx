@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useMemo, useState } from "react";
 import API from "../services/api";
 import Layout from "../components/Layout";
@@ -39,6 +38,7 @@ function formatDate(value) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
+
   return date.toLocaleDateString("en-PH", {
     year: "numeric",
     month: "short",
@@ -48,10 +48,13 @@ function formatDate(value) {
 
 function formatTime(value) {
   if (!value) return "—";
+
   const time = String(value).slice(0, 5);
   const [hours, minutes] = time.split(":");
   const date = new Date();
+
   date.setHours(Number(hours), Number(minutes), 0, 0);
+
   return date.toLocaleTimeString("en-PH", {
     hour: "numeric",
     minute: "2-digit",
@@ -67,16 +70,18 @@ function displayValue(value) {
 function getVitalSigns(visit) {
   if (visit.vital_signs) return visit.vital_signs;
 
-  return [
-    visit.blood_pressure && `BP: ${visit.blood_pressure}`,
-    visit.temperature && `Temp: ${visit.temperature} °C`,
-    visit.pulse_rate && `Pulse: ${visit.pulse_rate} bpm`,
-    visit.respiratory_rate && `RR: ${visit.respiratory_rate}/min`,
-    visit.oxygen_saturation && `SpO₂: ${visit.oxygen_saturation}%`,
-    visit.weight && `Weight: ${visit.weight} kg`,
-  ]
-    .filter(Boolean)
-    .join(" • ") || "—";
+  return (
+    [
+      visit.blood_pressure && `BP: ${visit.blood_pressure}`,
+      visit.temperature && `Temp: ${visit.temperature} °C`,
+      visit.pulse_rate && `Pulse: ${visit.pulse_rate} bpm`,
+      visit.respiratory_rate && `RR: ${visit.respiratory_rate}/min`,
+      visit.oxygen_saturation && `SpO₂: ${visit.oxygen_saturation}%`,
+      visit.weight && `Weight: ${visit.weight} kg`,
+    ]
+      .filter(Boolean)
+      .join(" • ") || "—"
+  );
 }
 
 export default function Services() {
@@ -315,62 +320,306 @@ export default function Services() {
     }
   };
 
-  const handlePrintClinicSlip = (visit) => {
-    const printWindow = window.open("", "_blank", "width=850,height=700");
+  // FIXED: One print function only. Removed the extra closing lines.
+  const handlePrintClinicSlip = async (visit) => {
+    let printWindow = null;
 
-    if (!printWindow) {
-      setError("Please allow pop-ups to print the clinic slip.");
-      return;
+    try {
+      // Open the window immediately after the button click.
+      printWindow = window.open("", "_blank", "width=850,height=700");
+
+      if (!printWindow) {
+        setError("Please allow pop-ups to print the clinic slip.");
+        return;
+      }
+
+      const studentName = getStudentName(visit);
+      const studentNumber = getStudentNumber(visit);
+
+      // Record the generated slip in the database.
+      // This requires POST /api/visits/:id/slip to exist in the backend.
+      await API.post(`/visits/${visit.id}/slip`, {});
+
+      printWindow.document.open();
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Clinic Visit Slip</title>
+
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 8mm;
+            }
+
+            * {
+              box-sizing: border-box;
+            }
+
+            body {
+              font-family: Arial, sans-serif;
+              padding: 0;
+              margin: 0;
+              color: #222;
+              background: white;
+              font-size: 10px;
+              line-height: 1.5;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+
+            .letterhead {
+              text-align: center;
+              padding-bottom: 12px;
+              margin-bottom: 14px;
+              border-bottom: 3px solid #2e7d32;
+            }
+
+            .school-name {
+              margin: 0;
+              color: #245c2a;
+              font-size: 20px;
+              font-weight: bold;
+              letter-spacing: 0.5px;
+            }
+
+            .school-subtitle {
+              margin: 5px 0 0;
+              color: #555;
+              font-size: 12px;
+            }
+
+            .document-title {
+              margin: 12px 0 4px;
+              color: #245c2a;
+              font-size: 17px;
+              text-align: center;
+              text-transform: uppercase;
+            }
+
+            .document-description {
+              margin: 0;
+              text-align: center;
+              color: #666;
+            }
+
+            .section {
+              margin: 12px 0;
+              padding: 10px 14px;
+              border: 1px solid #cfd8cf;
+              border-radius: 6px;
+              background: white;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+
+            .section h2 {
+              margin: 0 0 8px;
+              padding-bottom: 5px;
+              color: #245c2a;
+              font-size: 13px;
+              border-bottom: 1px solid #dce8dc;
+            }
+
+            .section p {
+              margin: 5px 0;
+              overflow-wrap: anywhere;
+            }
+
+            .label {
+              display: inline-block;
+              min-width: 115px;
+              font-weight: bold;
+              color: #333;
+            }
+
+            .signature-area {
+              display: flex;
+              justify-content: space-between;
+              gap: 35px;
+              margin-top: 35px;
+              break-inside: avoid;
+            }
+
+            .signature {
+              width: 48%;
+              padding-top: 8px;
+              text-align: center;
+              border-top: 1px solid #444;
+            }
+
+            .footer {
+              margin-top: 15px;
+              padding-top: 6px;
+              color: #777;
+              font-size: 9px;
+              text-align: center;
+              border-top: 1px solid #ddd;
+              break-inside: avoid;
+            }
+
+            .print-button {
+              display: block;
+              margin: 20px auto;
+              padding: 10px 22px;
+              color: white;
+              background: #2e7d32;
+              border: 0;
+              border-radius: 5px;
+              cursor: pointer;
+              font-size: 13px;
+            }
+
+            @media print {
+              .print-button {
+                display: none !important;
+              }
+            }
+          </style>
+        </head>
+
+        <body>
+          <header class="letterhead">
+            <h1 class="school-name">
+              PHINMA · UNIVERSITY OF ILOILO
+            </h1>
+
+            <p class="school-subtitle">SCHOOL CLINIC</p>
+
+            <h2 class="document-title">Clinic Visit Slip</h2>
+
+            <p class="document-description">
+              Student Consultation and Treatment Record
+            </p>
+          </header>
+
+          <div class="section">
+            <h2>Student Information</h2>
+
+            <p>
+              <span class="label">Student Name:</span>
+              ${escapeHtml(studentName)}
+            </p>
+
+            <p>
+              <span class="label">Student Number:</span>
+              ${escapeHtml(studentNumber)}
+            </p>
+          </div>
+
+          <div class="section">
+            <h2>Visit Information</h2>
+
+            <p>
+              <span class="label">Visit ID:</span>
+              ${escapeHtml(visit.id)}
+            </p>
+
+            <p>
+              <span class="label">Visit Type:</span>
+              ${escapeHtml(visit.visit_type)}
+            </p>
+
+            <p>
+              <span class="label">Date:</span>
+              ${escapeHtml(formatDate(visit.visit_date))}
+            </p>
+
+            <p>
+              <span class="label">Time:</span>
+              ${escapeHtml(formatTime(visit.visit_time))}
+            </p>
+
+            <p>
+              <span class="label">Physician / Staff:</span>
+              ${escapeHtml(visit.physician_name)}
+            </p>
+
+            <p>
+              <span class="label">Reason:</span>
+              ${escapeHtml(visit.reason)}
+            </p>
+          </div>
+
+          <div class="section">
+            <h2>Clinical Assessment</h2>
+
+            <p>
+              <span class="label">Vital Signs:</span>
+              ${escapeHtml(getVitalSigns(visit))}
+            </p>
+
+            <p>
+              <span class="label">Medical History:</span>
+              ${escapeHtml(visit.medical_history)}
+            </p>
+
+            <p>
+              <span class="label">Assessment:</span>
+              ${escapeHtml(visit.assessment)}
+            </p>
+
+            <p>
+              <span class="label">Treatment:</span>
+              ${escapeHtml(visit.treatment)}
+            </p>
+
+            <p>
+              <span class="label">Medication:</span>
+              ${escapeHtml(visit.starter_dose)}
+            </p>
+
+            <p>
+              <span class="label">Procedure:</span>
+              ${escapeHtml(visit.procedure_name)}
+            </p>
+
+            <p>
+              <span class="label">Advice:</span>
+              ${escapeHtml(visit.advice)}
+            </p>
+
+            <p>
+              <span class="label">Remarks:</span>
+              ${escapeHtml(visit.remarks)}
+            </p>
+          </div>
+
+          <div class="signature-area">
+            <div class="signature">Clinic Staff Signature</div>
+            <div class="signature">Student Signature</div>
+          </div>
+
+          <div class="footer">
+            PHINMA · UNIVERSITY OF ILOILO — SCHOOL CLINIC
+            <br>
+            Confidential student clinic record
+          </div>
+
+          <button class="print-button" onclick="window.print()">
+            Print Clinic Visit Slip
+          </button>
+        </body>
+        </html>
+      `);
+
+      printWindow.document.close();
+      printWindow.focus();
+    } catch (error) {
+      console.error("Error generating clinic slip:", error);
+
+      if (printWindow && !printWindow.closed) {
+        printWindow.close();
+      }
+
+      setError(
+        error.response?.data?.message ||
+          "Unable to generate the clinic slip. Please check the backend and try again."
+      );
     }
-
-    const studentName = getStudentName(visit);
-    const studentNumber = getStudentNumber(visit);
-
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Clinic Visit Slip</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 32px; color: #222; }
-          h1, h2, p { margin-top: 0; }
-          h1 { text-align: center; color: #2e7d32; }
-          .subtitle { text-align: center; margin-bottom: 28px; }
-          .section { margin: 18px 0; padding: 14px; border: 1px solid #ddd; }
-          .label { font-weight: bold; }
-          .line { margin: 10px 0; }
-          @media print { button { display: none; } }
-        </style>
-      </head>
-      <body>
-        <h1>UNIVERSITY OF ILOILO · PHINMA</h1>
-        <p class="subtitle">School Clinic — Clinic Visit Slip</p>
-        <div class="section">
-          <h2>Student Information</h2>
-          <p><span class="label">Name:</span> ${escapeHtml(studentName)}</p>
-          <p><span class="label">Student Number:</span> ${escapeHtml(studentNumber)}</p>
-        </div>
-        <div class="section">
-          <h2>Visit Information</h2>
-          <p><span class="label">Visit Type:</span> ${escapeHtml(visit.visit_type)}</p>
-          <p><span class="label">Date:</span> ${escapeHtml(formatDate(visit.visit_date))}</p>
-          <p><span class="label">Time:</span> ${escapeHtml(formatTime(visit.visit_time))}</p>
-          <p><span class="label">Reason:</span> ${escapeHtml(visit.reason)}</p>
-          <p><span class="label">Vital Signs:</span> ${escapeHtml(getVitalSigns(visit))}</p>
-          <p><span class="label">Medical History:</span> ${escapeHtml(visit.medical_history)}</p>
-          <p><span class="label">Assessment:</span> ${escapeHtml(visit.assessment)}</p>
-          <p><span class="label">Treatment:</span> ${escapeHtml(visit.treatment)}</p>
-          <p><span class="label">Procedure:</span> ${escapeHtml(visit.procedure_name)}</p>
-          <p><span class="label">Advice:</span> ${escapeHtml(visit.advice)}</p>
-          <p><span class="label">Remarks:</span> ${escapeHtml(visit.remarks)}</p>
-        </div>
-        <div class="line">Clinic Staff Signature: __________________________</div>
-        <button onclick="window.print()">Print Clinic Slip</button>
-      </body>
-      </html>
-    `);
-
-    printWindow.document.close();
   };
 
   const renderField = (
@@ -418,6 +667,7 @@ export default function Services() {
             >
               {loading ? "Refreshing..." : "↻ Refresh"}
             </button>
+
             <button
               type="button"
               className="services-btn services-btn-primary"
@@ -480,9 +730,12 @@ export default function Services() {
           <section className="services-panel" id="visit-form">
             <div className="services-panel-heading">
               <div>
-                <h2>{editingVisit ? "Edit Clinic Visit" : "Record Clinic Visit"}</h2>
+                <h2>
+                  {editingVisit ? "Edit Clinic Visit" : "Record Clinic Visit"}
+                </h2>
                 <p>Enter the student and consultation details below.</p>
               </div>
+
               <button
                 type="button"
                 className="services-btn services-btn-secondary"
@@ -497,11 +750,16 @@ export default function Services() {
             </div>
 
             <form onSubmit={handleSubmit}>
-              <h3 className="services-form-section-title">Student and Visit Details</h3>
+              <h3 className="services-form-section-title">
+                Student and Visit Details
+              </h3>
 
               <div className="services-form-grid">
                 <label className="services-field">
-                  <span>Student <span className="services-required">*</span></span>
+                  <span>
+                    Student <span className="services-required">*</span>
+                  </span>
+
                   <select
                     name="student_id"
                     value={form.student_id}
@@ -509,6 +767,7 @@ export default function Services() {
                     required
                   >
                     <option value="">Select a student</option>
+
                     {students.map((student) => (
                       <option key={student.id} value={student.id}>
                         {student.full_name || student.name} — {student.student_id}
@@ -518,7 +777,10 @@ export default function Services() {
                 </label>
 
                 <label className="services-field">
-                  <span>Visit Type <span className="services-required">*</span></span>
+                  <span>
+                    Visit Type <span className="services-required">*</span>
+                  </span>
+
                   <select
                     name="visit_type"
                     value={form.visit_type}
@@ -526,7 +788,9 @@ export default function Services() {
                     required
                   >
                     {VISIT_TYPES.map((type) => (
-                      <option key={type} value={type}>{type}</option>
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -535,10 +799,12 @@ export default function Services() {
                   type: "date",
                   required: true,
                 })}
+
                 {renderField("Visit Time", "visit_time", {
                   type: "time",
                   required: true,
                 })}
+
                 {renderField("Physician / Clinic Staff", "physician_name", {
                   placeholder: "Enter name",
                 })}
@@ -546,16 +812,25 @@ export default function Services() {
 
               {selectedStudent && (
                 <div className="services-student-preview">
-                  <strong>{selectedStudent.full_name || selectedStudent.name}</strong>
+                  <strong>
+                    {selectedStudent.full_name || selectedStudent.name}
+                  </strong>
                   <span>Student No.: {selectedStudent.student_id}</span>
-                  <span>{selectedStudent.course || "Course not specified"}</span>
+                  <span>
+                    {selectedStudent.course || "Course not specified"}
+                  </span>
                 </div>
               )}
 
-              <h3 className="services-form-section-title">Consultation Details</h3>
+              <h3 className="services-form-section-title">
+                Consultation Details
+              </h3>
+
               <div className="services-form-grid">
                 <label className="services-field services-field-wide">
-                  <span>Reason for Visit <span className="services-required">*</span></span>
+                  <span>
+                    Reason for Visit <span className="services-required">*</span>
+                  </span>
                   <textarea
                     name="reason"
                     value={form.reason}
@@ -579,28 +854,34 @@ export default function Services() {
               </div>
 
               <h3 className="services-form-section-title">Vital Signs</h3>
+
               <div className="services-form-grid">
                 {renderField("Blood Pressure", "blood_pressure", {
                   placeholder: "e.g. 120/80",
                 })}
+
                 {renderField("Temperature (°C)", "temperature", {
                   type: "number",
                   step: "0.1",
                   placeholder: "e.g. 36.5",
                 })}
+
                 {renderField("Pulse Rate (bpm)", "pulse_rate", {
                   type: "number",
                   placeholder: "e.g. 72",
                 })}
+
                 {renderField("Respiratory Rate (/min)", "respiratory_rate", {
                   type: "number",
                   placeholder: "e.g. 18",
                 })}
+
                 {renderField("Oxygen Saturation (%)", "oxygen_saturation", {
                   type: "number",
                   step: "0.1",
                   placeholder: "e.g. 98",
                 })}
+
                 {renderField("Weight (kg)", "weight", {
                   type: "number",
                   step: "0.1",
@@ -608,7 +889,10 @@ export default function Services() {
                 })}
               </div>
 
-              <h3 className="services-form-section-title">Assessment and Treatment</h3>
+              <h3 className="services-form-section-title">
+                Assessment and Treatment
+              </h3>
+
               <div className="services-form-grid">
                 <label className="services-field">
                   <span>Assessment / Findings</span>
@@ -633,6 +917,7 @@ export default function Services() {
                 {renderField("Starter Dose / Medication", "starter_dose", {
                   placeholder: "If applicable",
                 })}
+
                 {renderField("Procedure", "procedure_name", {
                   placeholder: "If applicable",
                 })}
@@ -680,6 +965,7 @@ export default function Services() {
                 >
                   Cancel
                 </button>
+
                 <button
                   type="submit"
                   className="services-btn services-btn-primary"
@@ -702,7 +988,9 @@ export default function Services() {
               <h2>Clinic Visit Records</h2>
               <p>Search and manage recorded consultations.</p>
             </div>
-            <span className="services-count">{filteredVisits.length} records</span>
+            <span className="services-count">
+              {filteredVisits.length} records
+            </span>
           </div>
 
           <div className="services-filter-grid">
@@ -724,7 +1012,9 @@ export default function Services() {
               >
                 <option value="all">All visit types</option>
                 {VISIT_TYPES.map((type) => (
-                  <option key={type} value={type}>{type}</option>
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
                 ))}
               </select>
             </label>
@@ -758,12 +1048,13 @@ export default function Services() {
                   <th>Visit ID</th>
                   <th>Student</th>
                   <th>Visit Type</th>
-                  <th>Date & Time</th>
+                  <th>Date &amp; Time</th>
                   <th>Reason</th>
                   <th>Follow-up</th>
                   <th>Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredVisits.map((visit) => (
                   <tr key={visit.id}>
@@ -772,6 +1063,7 @@ export default function Services() {
                         #{visit.id}
                       </span>
                     </td>
+
                     <td>
                       <div className="services-student-name">
                         {getStudentName(visit)}
@@ -780,31 +1072,40 @@ export default function Services() {
                         {getStudentNumber(visit)}
                       </div>
                     </td>
+
                     <td>
                       <span className="services-visit-type">
                         {visit.visit_type}
                       </span>
                     </td>
+
                     <td>
                       <div>{formatDate(visit.visit_date)}</div>
                       <div className="services-muted">
                         {formatTime(visit.visit_time)}
                       </div>
                     </td>
+
                     <td>
                       <span className="services-reason">
                         {displayValue(visit.reason)}
                       </span>
                     </td>
+
                     <td>
                       {Boolean(visit.follow_up_required) ||
                       visit.follow_up_required === 1 ||
                       visit.follow_up_required === "1" ? (
-                        <span className="services-follow-up yes">Required</span>
+                        <span className="services-follow-up yes">
+                          Required
+                        </span>
                       ) : (
-                        <span className="services-follow-up no">Not required</span>
+                        <span className="services-follow-up no">
+                          Not required
+                        </span>
                       )}
                     </td>
+
                     <td>
                       <div className="services-row-actions">
                         <button
@@ -815,6 +1116,7 @@ export default function Services() {
                         >
                           View
                         </button>
+
                         <button
                           type="button"
                           className="services-action-btn"
@@ -823,6 +1125,7 @@ export default function Services() {
                         >
                           Edit
                         </button>
+
                         <button
                           type="button"
                           className="services-action-btn"
@@ -850,7 +1153,9 @@ export default function Services() {
                 {loading && (
                   <tr>
                     <td colSpan="7">
-                      <div className="services-empty">Loading clinic visits...</div>
+                      <div className="services-empty">
+                        Loading clinic visits...
+                      </div>
                     </td>
                   </tr>
                 )}
@@ -874,8 +1179,11 @@ export default function Services() {
               <div className="services-modal-header">
                 <div>
                   <span className="services-eyebrow">CLINIC RECORD</span>
-                  <h2 id="visit-details-title">Visit #{selectedVisit.id} Details</h2>
+                  <h2 id="visit-details-title">
+                    Visit #{selectedVisit.id} Details
+                  </h2>
                 </div>
+
                 <button
                   type="button"
                   className="services-modal-close"
@@ -887,21 +1195,63 @@ export default function Services() {
               </div>
 
               <div className="services-details-grid">
-                <Detail label="Student" value={getStudentName(selectedVisit)} />
-                <Detail label="Student Number" value={getStudentNumber(selectedVisit)} />
-                <Detail label="Visit Type" value={selectedVisit.visit_type} />
-                <Detail label="Date" value={formatDate(selectedVisit.visit_date)} />
-                <Detail label="Time" value={formatTime(selectedVisit.visit_time)} />
-                <Detail label="Physician / Staff" value={selectedVisit.physician_name} />
+                <Detail
+                  label="Student"
+                  value={getStudentName(selectedVisit)}
+                />
+                <Detail
+                  label="Student Number"
+                  value={getStudentNumber(selectedVisit)}
+                />
+                <Detail
+                  label="Visit Type"
+                  value={selectedVisit.visit_type}
+                />
+                <Detail
+                  label="Date"
+                  value={formatDate(selectedVisit.visit_date)}
+                />
+                <Detail
+                  label="Time"
+                  value={formatTime(selectedVisit.visit_time)}
+                />
+                <Detail
+                  label="Physician / Staff"
+                  value={selectedVisit.physician_name}
+                />
                 <Detail label="Reason" value={selectedVisit.reason} />
-                <Detail label="Medical History" value={selectedVisit.medical_history} />
-                <Detail label="Vital Signs" value={getVitalSigns(selectedVisit)} />
-                <Detail label="Assessment" value={selectedVisit.assessment} />
-                <Detail label="Treatment" value={selectedVisit.treatment} />
-                <Detail label="Medication / Starter Dose" value={selectedVisit.starter_dose} />
-                <Detail label="Procedure" value={selectedVisit.procedure_name} />
-                <Detail label="Advice / Instructions" value={selectedVisit.advice} />
-                <Detail label="Remarks" value={selectedVisit.remarks} />
+                <Detail
+                  label="Medical History"
+                  value={selectedVisit.medical_history}
+                />
+                <Detail
+                  label="Vital Signs"
+                  value={getVitalSigns(selectedVisit)}
+                />
+                <Detail
+                  label="Assessment"
+                  value={selectedVisit.assessment}
+                />
+                <Detail
+                  label="Treatment"
+                  value={selectedVisit.treatment}
+                />
+                <Detail
+                  label="Medication / Starter Dose"
+                  value={selectedVisit.starter_dose}
+                />
+                <Detail
+                  label="Procedure"
+                  value={selectedVisit.procedure_name}
+                />
+                <Detail
+                  label="Advice / Instructions"
+                  value={selectedVisit.advice}
+                />
+                <Detail
+                  label="Remarks"
+                  value={selectedVisit.remarks}
+                />
                 <Detail
                   label="Follow-up"
                   value={
@@ -922,6 +1272,7 @@ export default function Services() {
                 >
                   Close
                 </button>
+
                 <button
                   type="button"
                   className="services-btn services-btn-primary"
@@ -933,6 +1284,7 @@ export default function Services() {
                 >
                   Edit Visit
                 </button>
+
                 <button
                   type="button"
                   className="services-btn services-btn-secondary"

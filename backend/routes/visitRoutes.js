@@ -12,4 +12,6 @@ router.post("/", auth, visitController.createVisit);
 
 router.put("/:id", auth, visitController.updateVisit);
 
+router.post("/:id/slip", auth, visitController.createSlipRecord);
+
 module.exports = router;
